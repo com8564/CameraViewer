@@ -90,4 +90,6 @@ public:
 	afx_msg void OnEnChangeEditGainVal();
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	CButton m_play;
+	CButton m_stop;
 };

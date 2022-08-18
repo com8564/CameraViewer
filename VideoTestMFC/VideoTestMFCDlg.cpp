@@ -71,6 +71,8 @@ void CVideoTestMFCDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECK_GRAY, m_checkGray);
 	DDX_Control(pDX, IDC_CHECK_SHARPEN, m_checkSharpen);
 	DDX_Control(pDX, IDC_CHECK_MOSAIC, m_mosaic);
+	DDX_Control(pDX, IDC_BUTTON_PLAY, m_play);
+	DDX_Control(pDX, IDC_BUTTON_STOP, m_stop);
 }
 
 BEGIN_MESSAGE_MAP(CVideoTestMFCDlg, CDialogEx)
@@ -346,7 +348,7 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 
 	std::vector<CString> recv = SendCommand(server, L"GetALC"); //Get camera setting
 	if (recv[0] != "OK") { return; }
-
+	
 	//Exposure state
 	if (recv[1] == "ON") {
 		m_ExposureSlider.EnableWindow(0);
@@ -395,7 +397,8 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 	if (recv[0] == "OK") {
 		SetDlgItemText(IDC_STATIC_SERIAL, recv[1]);
 	}
-
+	GetDlgItem(IDC_BUTTON_PLAY)->EnableWindow(FALSE);
+	GetDlgItem(IDC_BUTTON_STOP)->EnableWindow(TRUE);
 	m_keepGrab = true;
 	pThread = AfxBeginThread(GrabThreadProc, this);
 }
@@ -408,7 +411,9 @@ void CVideoTestMFCDlg::OnBnClickedButton4()
 	m_keepGrab = false;
 	m_threadFinished.Wait(1000);
 	// TODO: Insert your clean up code for camera, codec, etc.
-	// CloseCamera()...
+	GetDlgItem(IDC_BUTTON_PLAY)->EnableWindow(TRUE);
+	GetDlgItem(IDC_BUTTON_STOP)->EnableWindow(FALSE);
+
 	closesocket(videoSocket);
 	WSACleanup();
 }
@@ -553,13 +558,6 @@ void CVideoTestMFCDlg::OnNMCustomdrawSlider1(NMHDR* pNMHDR, LRESULT* pResult)
 
 void CVideoTestMFCDlg::OnEnChangeEdit3()
 {
-	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
-	// CDialogEx::OnInitDialog() 함수를 재지정 
-	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
-	// 이 알림 메시지를 보내지 않습니다.
-
-	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
-
 	if (m_keepGrab && m_autoEXP.GetCheck() == 0) {
 		CWnd* win = GetDlgItem(IDC_EDIT_EXP_VAL);
 		CString item;
@@ -837,8 +835,6 @@ bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage) {
 		for (int x = x_col; x <= bpp * (m_right - 12) * 2.13; x++) {
 			*output = saturate_cast<uchar>(
 				(4 * current[x] - current[x - bpp] - current[x + bpp])
-				- (previous[x])
-				- (next[x])
 				);
 			output++;
 		}
