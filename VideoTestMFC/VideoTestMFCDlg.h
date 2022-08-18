@@ -45,24 +45,16 @@ public:
 // Implementation
 protected:
 	HICON m_hIcon;
-	bool m_keepGrab = false;
+	bool m_clickedSaveImage = false, m_keepGrab = false;
 	novitec::Event m_threadFinished;
 	SOCKET videoSocket, commandSocket;
-	unsigned char* rgbBuffer = NULL;
 	Mutex m;
-	bool m_clickedSaveImage = false;
 	char server[35];
-	int count;
 	int height = 1080, width = 1920, bpp = 3;
 
-	CButton m_autoEXP;
-	CSliderCtrl m_ExposureSlider;
-	CEdit m_expVal;
-
-	CButton m_autoGain;
-	CSliderCtrl m_gainSlider;
-	CEdit m_gainVal;
-	CButton m_checkGray, m_checkSharpen;
+	CSliderCtrl m_gainSlider, m_ExposureSlider;
+	CEdit m_gainVal, m_expVal;
+	CButton m_autoEXP, m_autoGain, m_checkGray, m_checkSharpen;
 
 	static unsigned int GrabThreadProc(void *param);
 	int GrabLoop(void);
@@ -82,10 +74,10 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
+	CWinThread* pThread;
 	afx_msg void OnBnClickedButton1();
 	afx_msg void OnBnClickedButton4();
 	afx_msg void OnBnClickedButton2();
-	CWinThread* pThread;
 	afx_msg void OnBnClickedButton5();
 	afx_msg void OnNMCustomdrawSlider1(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnEnChangeEdit3();

@@ -189,8 +189,8 @@ int CVideoTestMFCDlg::GrabLoop(void)
 	CWnd *pView = GetDlgItem(IDC_CAMERA_VIEW);
 	CDC *pDC = pView->GetDC();
 
-	rgbBuffer = new unsigned char[width * height * bpp];
-	unsigned char* grayBuffer = new unsigned char[width * height];
+	uchar* rgbBuffer = new unsigned char[width * height * bpp];
+	uchar* grayBuffer = new unsigned char[width * height];
 	int y = 0;
 	clock_t startTime = clock();
 	
@@ -217,7 +217,7 @@ int CVideoTestMFCDlg::GrabLoop(void)
 					r = rgbBuffer[(y * width * 3) + x + 2];
 					g = rgbBuffer[(y * width * 3) + x + 1];
 					b = rgbBuffer[(y * width * 3) + x + 0];
-					grayBuffer[(width * y) + (x - (2 * i))] = 0.299 * r + 0.587 * g + 0.114 * b;
+					grayBuffer[(width * y) + (x - (2 * i))] = (0.299 * r) + (0.587 * g) + (0.114 * b);
 					i++;
 				}
 			}
@@ -232,11 +232,10 @@ int CVideoTestMFCDlg::GrabLoop(void)
 		clock_t endTime = clock();
 		clock_t tempTime = 1000.0f / (float)(endTime - startTime);
 		tempTime /= 1.0f;
+
 		CString fps;
 		fps.Format(_T("%d"), tempTime);
 		SetDlgItemText(IDC_STATIC_FPS, fps);
-		::Sleep(10); // need this to avoid tight-loop.
-		count = 0;
 		startTime = endTime;
 	}
 
@@ -691,20 +690,25 @@ bool CVideoTestMFCDlg::Sharpen(uchar* rgbImage) {
 	unsigned char* sharpenImage = new unsigned char[width * height * bpp];
 
 	memcpy(sharpenImage, rgbImage, width * height * bpp);
-	for (int row = 1; row < height - 1; row++) {
+	for (int y = 1; y < height - 1; y++) {
 
-		const uchar* previous = rgbImage + width * (row - 1) * bpp;
-		const uchar* current = rgbImage + width * (row) * bpp;
-		const uchar* next = rgbImage +  width * (row + 1) * bpp;
-		uchar* output = sharpenImage + width * row * bpp;
+		const uchar* previous = rgbImage + width * (y - 1) * bpp;
+		const uchar* current = rgbImage + width * (y) * bpp;
+		const uchar* next = rgbImage +  width * (y + 1) * bpp;
 
-		for (int col = 0; col <= 3 * (width - 1); col++) {
-			*output = saturate_cast<uchar>(
-				(5 * current[col] - current[col - bpp] - current[col + bpp])
-				- (previous[col])
-				- (next[col])
-				);
-			output++;
+		uchar* output = sharpenImage + width * y * bpp;
+		for (int x = 0; x <= bpp * (width - 1); x++) {
+			if (x < bpp) {
+				output++;
+			}
+			else {
+				*output = saturate_cast<uchar>(
+					(9 * current[x] - current[x - bpp] - current[x + bpp])
+					- (previous[x] + previous[x - bpp] + previous[x + bpp])
+					- (next[x] + next[x - bpp] + next[x + bpp])
+					);
+				output++;
+			}
 		}
 	}
 	memcpy(rgbImage, sharpenImage, width * height * bpp);
