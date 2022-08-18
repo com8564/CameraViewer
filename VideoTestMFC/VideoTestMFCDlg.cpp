@@ -224,7 +224,7 @@ int CVideoTestMFCDlg::GrabLoop(void)
 					r = rgbBuffer[(y * width * 3) + x + 2];
 					g = rgbBuffer[(y * width * 3) + x + 1];
 					b = rgbBuffer[(y * width * 3) + x + 0];
-					grayBuffer[(width * y) + (x - (2 * i))] = (0.299 * r) + (0.587 * g) + (0.114 * b);
+					grayBuffer[(width * y) + i] = (0.299 * r) + (0.587 * g) + (0.114 * b);
 					i++;
 				}
 			}
