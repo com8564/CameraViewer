@@ -330,8 +330,6 @@ void CVideoTestMFCDlg::DrawImage(CWnd *wnd, int width, int height, int bpp, cons
 void CVideoTestMFCDlg::OnBnClickedButton1()
 {
 	// TODO: Insert your initialization for camera, codec, etc.
-	// OpenCamera()...
-
 	CWnd* win = GetDlgItem(IDC_EDIT1);
 	CString item;
 	win->GetWindowTextW(item);
@@ -339,8 +337,11 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 	strcpy_s(server, sizeof(server), CT2CA(item));
 	videoSocket = connectToServer(server, 1334);
 	if (videoSocket == NULL) { return; }
-	std::vector<CString> recv = SendCommand(server, L"GetALC");
 
+	std::vector<CString> recv = SendCommand(server, L"GetALC"); //Get camera setting
+	if (recv[0] != "OK") { return; }
+
+	//Exposure state
 	if (recv[1] == "ON") {
 		m_ExposureSlider.EnableWindow(0);
 		m_autoEXP.SetCheck(1);
@@ -352,38 +353,39 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 		m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
 	}
 
+	//Gain state
 	if (recv[2] == "ON") {
 		m_gainSlider.EnableWindow(0);
 		m_autoGain.SetCheck(1);
 		m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
 	}
-		
 	else {
 		m_gainSlider.EnableWindow(1);
 		m_autoGain.SetCheck(0);
 		m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
 	}
 
-	if (m_autoEXP.GetCheck() == 1) {
+	CString command;
+	if (m_autoEXP.GetCheck() == 1) { //exposure is not automatic
 		CWnd* win = GetDlgItem(IDC_EDIT_EXP_VAL);
 		CString item;
 		win->GetWindowTextW(item);
-
-		CString command = L"SetExposure ";
+		command = L"SetExposure ";
 		command += item;
-		SendCommand(server, command);
+		
 	}
-
-	if (m_autoGain.GetCheck() == 1) {
+	if (m_autoGain.GetCheck() == 1) { //gain is not automatic
 		CWnd* win = GetDlgItem(IDC_EDIT_GAIN_VAL);
 		CString item;
 		win->GetWindowTextW(item);
 
-		CString command = L"SetTotalGain ";
+		command = L"SetTotalGain ";
 		command += item;
-		SendCommand(server, command);
 	}
+
+	SendCommand(server, command);
 	recv = SendCommand(server, L"GetSerialNumber");
+
 	if (recv[0] == "OK") {
 		SetDlgItemText(IDC_STATIC_SERIAL, recv[1]);
 	}
@@ -416,15 +418,14 @@ void CVideoTestMFCDlg::OnBnClickedButton2()
 	win->GetWindowTextW(item);
 
 	//send command message
-	SendCommand(server, item);
-	//if (success) { MessageBox(L"success"); }
-	//else { MessageBox(L"Fail"); }
+	std::vector<CString> success = SendCommand(server, item);
+	if (success[0]=="OK") { MessageBox(L"success"); }
+	else { MessageBox(L"Fail"); }
 }
 
 SOCKET CVideoTestMFCDlg::connectToServer(char* szServerName, WORD portNum)
 {
 	WSADATA wsaData;
-
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
 		printf("WSAStartup failed.\n");
 		system("pause");
@@ -436,11 +437,9 @@ SOCKET CVideoTestMFCDlg::connectToServer(char* szServerName, WORD portNum)
 	SOCKET conn;
 
 	conn = socket(AF_INET, SOCK_STREAM, 0);
-
 	if (conn == INVALID_SOCKET) { return NULL; }
 
-	//inet_addr() is only supporting IPv4 but InetPton() support both IPv4 and IPv6 
-	InetPton(AF_INET, CA2CT(szServerName), &server.sin_addr.s_addr); 
+	InetPton(AF_INET, CA2CT(szServerName), &server.sin_addr.s_addr); //inet_addr() is only supporting IPv4 but InetPton() support both IPv4 and IPv6 
 	server.sin_family = AF_INET;
 	server.sin_port = htons(portNum);
 
@@ -464,6 +463,7 @@ int CVideoTestMFCDlg::get_ImgSize(SOCKET& Socket) {
 			break;
 		}
 		else {
+			memset(recvbuf, 0, 2000);
 			continue;
 		}
 	}
@@ -517,8 +517,8 @@ std::vector<CString> CVideoTestMFCDlg::SendCommand(char* server, CString message
 		i++;
 	}
 
-	if (result.size() > 0) {
-		result[result.size() - 1].Replace(L"\r\n", L"");
+	if (result.size() > 0) {//Erase CRLF
+		result[result.size() - 1].Replace(L"\r\n", L""); 
 	}
 	
 	closesocket(commandSocket);
@@ -567,20 +567,21 @@ void CVideoTestMFCDlg::OnEnChangeEdit3()
 
 void CVideoTestMFCDlg::OnBnClickedCheckAutoExp()
 {
-	// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
-	if (m_keepGrab) {
+	if (m_keepGrab) {//camera is running
 		CString command = NULL;
-		if (m_autoEXP.GetCheck() == 1) {
+		
+		if (m_autoEXP.GetCheck() == 1) {//exposure is auto
 			m_ExposureSlider.EnableWindow(0);
 			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
 
-			if (m_autoGain.GetCheck() == 1) {
+			if (m_autoGain.GetCheck() == 1) {//gain is auto
 				command = L"SetALC ON ON 90 43 33021 0.00000 13.9000 15.0 OFF";
 			}
 			else {
 				command = L"SetALC ON OFF 90 43 33021 0.00000 13.9000 15.0 OFF";
 			}
 		}
+
 		else {
 			m_ExposureSlider.EnableWindow(1);
 			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
@@ -688,8 +689,8 @@ void CVideoTestMFCDlg::OnEnChangeEditGainVal()
 
 bool CVideoTestMFCDlg::Sharpen(uchar* rgbImage) {
 	unsigned char* sharpenImage = new unsigned char[width * height * bpp];
-	memcpy(sharpenImage, rgbImage, width * height * bpp);
 
+	memcpy(sharpenImage, rgbImage, width * height * bpp);
 	for (int row = 1; row < height - 1; row++) {
 
 		const uchar* previous = rgbImage + width * (row - 1) * bpp;
