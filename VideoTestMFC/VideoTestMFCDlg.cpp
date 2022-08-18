@@ -70,6 +70,7 @@ void CVideoTestMFCDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EDIT_GAIN_VAL, m_gainVal);
 	DDX_Control(pDX, IDC_CHECK_GRAY, m_checkGray);
 	DDX_Control(pDX, IDC_CHECK_SHARPEN, m_checkSharpen);
+	DDX_Control(pDX, IDC_CHECK_MOSAIC, m_mosaic);
 }
 
 BEGIN_MESSAGE_MAP(CVideoTestMFCDlg, CDialogEx)
@@ -86,6 +87,8 @@ BEGIN_MESSAGE_MAP(CVideoTestMFCDlg, CDialogEx)
 	ON_NOTIFY(NM_CUSTOMDRAW, IDC_SLIDER_GAIN_SLIDER, &CVideoTestMFCDlg::OnNMCustomdrawSliderGainSlider)
 	ON_BN_CLICKED(IDC_CHECK_AUTO_GAIN, &CVideoTestMFCDlg::OnBnClickedCheckAutoGain)
 	ON_EN_CHANGE(IDC_EDIT_GAIN_VAL, &CVideoTestMFCDlg::OnEnChangeEditGainVal)
+	ON_WM_LBUTTONDOWN()
+	ON_WM_LBUTTONUP()
 END_MESSAGE_MAP()
 
 
@@ -202,6 +205,10 @@ int CVideoTestMFCDlg::GrabLoop(void)
 
 		if (m_checkSharpen.GetCheck() == 1) {
 			Sharpen(rgbBuffer);
+		}
+
+		if (m_mosaic.GetCheck() == 1) {
+			Mosaic(rgbBuffer);
 		}
 
 		if (m_checkGray.GetCheck() == 0) {			
@@ -691,7 +698,6 @@ bool CVideoTestMFCDlg::Sharpen(uchar* rgbImage) {
 
 	memcpy(sharpenImage, rgbImage, width * height * bpp);
 	for (int y = 1; y < height - 1; y++) {
-
 		const uchar* previous = rgbImage + width * (y - 1) * bpp;
 		const uchar* current = rgbImage + width * (y) * bpp;
 		const uchar* next = rgbImage +  width * (y + 1) * bpp;
@@ -766,5 +772,79 @@ bool CVideoTestMFCDlg::SaveBMP24(const char* filename, int height, int width, in
 		}
 	}
 	fclose(fp);
+	return true;
+}
+
+
+void CVideoTestMFCDlg::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	CRect m_Pic;
+	GetDlgItem(IDC_CAMERA_VIEW)->GetWindowRect(m_Pic);
+	ScreenToClient(m_Pic);
+	if (m_keepGrab && m_mosaic.GetCheck() == 1) {
+		if (m_Pic.left < point.x && m_Pic.top < point.y && m_Pic.right > point.x && m_Pic.bottom > point.y) {
+			m_left = point.x;
+			m_top = point.y;
+		}
+	}
+	else if (m_keepGrab && m_mosaic.GetCheck() == 0) {
+		m_right = 0;
+		m_bottom = 0;
+	}
+
+	CDialogEx::OnLButtonDown(nFlags, point);
+}
+
+
+void CVideoTestMFCDlg::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
+	CRect m_Pic;
+	GetDlgItem(IDC_CAMERA_VIEW)->GetWindowRect(m_Pic);
+	ScreenToClient(m_Pic);
+	if (m_keepGrab && m_mosaic.GetCheck()==1) {
+		if (m_Pic.left < point.x && m_Pic.top < point.y && m_Pic.right > point.x && m_Pic.bottom > point.y) {
+			m_right = point.x;
+			m_bottom = point.y;
+		}
+		else {
+			m_right = m_Pic.right;
+			m_bottom = m_Pic.bottom;
+		}
+	}
+	else if(m_keepGrab && m_mosaic.GetCheck()==0){
+		m_right = 0;
+		m_bottom = 0;
+	}
+
+	CDialogEx::OnLButtonUp(nFlags, point);
+}
+
+
+bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage) {
+	unsigned char* mosaicImage = new unsigned char[width * height * bpp];
+
+	memcpy(mosaicImage, rgbImage, width * height * bpp);
+	for (int y = (m_top - 11) * 2.08; y < (m_bottom - 12) * 2.08; y++) {
+		const uchar* previous = rgbImage + width * (y - 1) * bpp;
+		const uchar* current = rgbImage + width * (y)*bpp;
+		const uchar* next = rgbImage + width * (y + 1) * bpp;
+
+		int x_col = (m_left - 11) * 3 * 2.05;
+		x_col -= x_col % 3;
+		uchar* output = mosaicImage + width * y * bpp + x_col;
+		for (int x = x_col; x <= bpp * (m_right - 12) * 2.13; x++) {
+			*output = saturate_cast<uchar>(
+				(4 * current[x] - current[x - bpp] - current[x + bpp])
+				- (previous[x])
+				- (next[x])
+				);
+			output++;
+		}
+	}
+	memcpy(rgbImage, mosaicImage, width * height * bpp);
+
+	delete[] mosaicImage;
 	return true;
 }

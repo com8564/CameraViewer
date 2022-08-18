@@ -51,10 +51,11 @@ protected:
 	Mutex m;
 	char server[35];
 	int height = 1080, width = 1920, bpp = 3;
+	int m_left, m_right, m_top, m_bottom;
 
 	CSliderCtrl m_gainSlider, m_ExposureSlider;
 	CEdit m_gainVal, m_expVal;
-	CButton m_autoEXP, m_autoGain, m_checkGray, m_checkSharpen;
+	CButton m_autoEXP, m_autoGain, m_checkGray, m_checkSharpen, m_mosaic;
 
 	static unsigned int GrabThreadProc(void *param);
 	int GrabLoop(void);
@@ -66,6 +67,7 @@ protected:
 	BOOL PreTranslateMessage(MSG* pMsg);
 	bool Sharpen(uchar* rgbImage);
 	bool SaveBMP24(const char* filename, int height, int width, int bpp, unsigned char* pBmpImage);
+	bool Mosaic(uchar* rgbImage);
 
 	// Generated message map functions
 	virtual BOOL OnInitDialog();
@@ -73,6 +75,7 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+
 public:
 	CWinThread* pThread;
 	afx_msg void OnBnClickedButton1();
@@ -85,4 +88,6 @@ public:
 	afx_msg void OnNMCustomdrawSliderGainSlider(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnBnClickedCheckAutoGain();
 	afx_msg void OnEnChangeEditGainVal();
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 };

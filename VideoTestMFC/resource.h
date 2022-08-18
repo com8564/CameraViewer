@@ -26,8 +26,9 @@
 #define IDC_STATIC_SERIAL               1015
 #define IDC_STATIC_FPS2                 1016
 #define IDC_CHECK_GRAY                  1019
-#define IDC_CHECK1                      1020
 #define IDC_CHECK_SHARPEN               1020
+#define IDC_CHECK2                      1021
+#define IDC_CHECK_MOSAIC                1021
 
 // Next default values for new objects
 // 
@@ -35,7 +36,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1021
+#define _APS_NEXT_CONTROL_VALUE         1022
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
