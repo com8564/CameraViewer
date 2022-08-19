@@ -73,6 +73,7 @@ void CVideoTestMFCDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECK_MOSAIC, m_mosaic);
 	DDX_Control(pDX, IDC_BUTTON_PLAY, m_play);
 	DDX_Control(pDX, IDC_BUTTON_STOP, m_stop);
+	DDX_Control(pDX, IDC_CAMERA_VIEW, m_cameraView);
 }
 
 BEGIN_MESSAGE_MAP(CVideoTestMFCDlg, CDialogEx)
@@ -342,12 +343,13 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 	win->GetWindowTextW(item);
 	USES_CONVERSION;
 	strcpy_s(server, sizeof(server), CT2CA(item));
-	inova.connectCamera(server, 1334, 1335);
+	inova.connectCamera(server);
 	
-	std::string AEC, ALC;
+	bool AEC = true;
+	bool ALC = true;
 	if (inova.GetALC(AEC, ALC)) {
 		//Exposure state
-		if (AEC == "ON") {
+		if (AEC) {
 			m_ExposureSlider.EnableWindow(0);
 			m_autoEXP.SetCheck(1);
 			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
@@ -359,7 +361,7 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 		}
 
 		//Gain state
-		if (ALC == "ON") {
+		if (ALC) {
 			m_gainSlider.EnableWindow(0);
 			m_autoGain.SetCheck(1);
 			m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
@@ -380,7 +382,7 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 		CT2CA convertedString(item);
 		std::string val = std::string(convertedString);
 
-		inova.SetExposure(val);
+		inova.SetExposure(stoi(val));
 	}
 
 	if (m_autoGain.GetCheck() == 1) { //gain is not automatic
@@ -392,7 +394,7 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 		CT2CA convertedString(item);
 		std::string val = std::string(convertedString);
 
-		inova.SetTotalGain(val);
+		inova.SetTotalGain(stoi(val));
 	}
 
 	std::string serialNumber;
@@ -402,6 +404,17 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 		LPCTSTR wideString = temp.c_str();
 
 		SetDlgItemText(IDC_STATIC_SERIAL, wideString);
+	}
+	std::string exposureVal;
+	if (inova.GetExposure(exposureVal)) {
+		//Convert std::string to LPCTSRT
+		std::wstring temp = std::wstring(exposureVal.begin(), exposureVal.end());
+		LPCTSTR wideString = temp.c_str();
+		SetDlgItemText(IDC_EDIT_EXP_VAL, wideString);
+
+		inova.SetExposure(stoi(exposureVal));
+		int iPos = _ttoi(wideString);
+		m_ExposureSlider.SetPos(iPos);
 	}
 
 	//unenable play button , enable stop button
@@ -473,7 +486,7 @@ void CVideoTestMFCDlg::OnEnChangeEdit3()
 		CT2CA convertedString(item);
 		std::string val = std::string(convertedString);
 
-		inova.SetExposure(val);
+		inova.SetExposure(stoi(val));
 	}
 }
 
@@ -593,7 +606,7 @@ void CVideoTestMFCDlg::OnEnChangeEditGainVal()
 		CT2CA convertedString(item);
 		std::string val = std::string(convertedString);
 
-		inova.SetTotalGain(val);
+		inova.SetTotalGain(stoi(val));
 	}
 }
 
@@ -613,9 +626,9 @@ bool CVideoTestMFCDlg::Sharpen(uchar* rgbImage) {
 			}
 			else {
 				*output = saturate_cast<uchar>(
-					(9 * current[x] - current[x - bpp] - current[x + bpp])
-					- (previous[x] + previous[x - bpp] + previous[x + bpp])
-					- (next[x] + next[x - bpp] + next[x + bpp])
+					(5 * current[x] - current[x - bpp] - current[x + bpp])
+					- (previous[x])
+					- (next[x])
 					);
 				output++;
 			}
@@ -728,17 +741,24 @@ void CVideoTestMFCDlg::OnLButtonUp(UINT nFlags, CPoint point)
 
 bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage) {
 	unsigned char* mosaicImage = new unsigned char[width * height * bpp];
+	CRect m_Pic;
+	GetDlgItem(IDC_CAMERA_VIEW)->GetWindowRect(m_Pic);
+	ScreenToClient(m_Pic);
+
+	int y_ratio = height / (m_Pic.bottom - m_Pic.top);
+	int x_ratio = width / (m_Pic.right - m_Pic.left);
 
 	memcpy(mosaicImage, rgbImage, width * height * bpp);
-	for (int y = (m_top - 11) * 2.08; y < (m_bottom - 12) * 2.08; y++) {
+	for (int y = (m_top - m_Pic.top) * y_ratio; y < (m_bottom - m_Pic.top - 1) * y_ratio; y++) {
 		const uchar* previous = rgbImage + width * (y - 1) * bpp;
 		const uchar* current = rgbImage + width * (y)*bpp;
 		const uchar* next = rgbImage + width * (y + 1) * bpp;
 
-		int x_col = (m_left - 11) * 3 * 2.05;
+		int x_col = (m_left - m_Pic.left) * 3 * x_ratio;
 		x_col -= x_col % 3;
 		uchar* output = mosaicImage + width * y * bpp + x_col;
-		for (int x = x_col; x <= bpp * (m_right - 12) * 2.13; x++) {
+
+		for (int x = x_col; x <= bpp * (m_right - m_Pic.left - 1) * x_ratio; x++) {
 			*output = saturate_cast<uchar>(
 				(4 * current[x] - current[x - bpp] - current[x + bpp])
 				);

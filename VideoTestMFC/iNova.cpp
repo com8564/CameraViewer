@@ -14,45 +14,42 @@ iNova::~iNova() {
 	WSACleanup();
 }
 
-bool iNova::connectCamera(char* szServerName, WORD streamingPort, WORD commandPort) {
+bool iNova::connectCamera(char* szServerName) {
 	WSADATA wsaData;
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
 		printf("WSAStartup failed.\n");
 		system("pause");
 	}
 	bool success = true;
-	if (streamingPort != 0) {
-		streamingSocket = socket(AF_INET, SOCK_STREAM, 0);
-		if (streamingSocket == INVALID_SOCKET) { return false; }
 
-		struct sockaddr_in server;
-		inet_pton(AF_INET, szServerName, &server.sin_addr.s_addr); //inet_addr() is only supporting IPv4 but inet_pton() support both IPv4 and IPv6 
-		//server.sin_addr.s_addr = inet_addr(szServerName);
-		server.sin_family = AF_INET;
-		server.sin_port = htons(streamingPort);
+	streamingSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (streamingSocket == INVALID_SOCKET) { return false; }
 
-		if (connect(streamingSocket, (SOCKADDR*)&server, sizeof(server))) {
-			closesocket(streamingSocket);
-			success = false;
-		}
+	struct sockaddr_in streamingserver;
+	inet_pton(AF_INET, szServerName, &streamingserver.sin_addr.s_addr); //inet_addr() is only supporting IPv4 but inet_pton() support both IPv4 and IPv6 
+	//server.sin_addr.s_addr = inet_addr(szServerName);
+	streamingserver.sin_family = AF_INET;
+	streamingserver.sin_port = htons(1334);
+
+	if (connect(streamingSocket, (SOCKADDR*)&streamingserver, sizeof(streamingserver))) {
+		closesocket(streamingSocket);
+		success = false;
 	}
 
-	if (commandPort != 0) {
-		commandSocket = socket(AF_INET, SOCK_STREAM, 0);
-		if (commandSocket == INVALID_SOCKET) { return false; }
+	commandSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (commandSocket == INVALID_SOCKET) { return false; }
 
-		struct sockaddr_in server;
-		inet_pton(AF_INET, szServerName, &server.sin_addr.s_addr); //inet_addr() is only supporting IPv4 but inet_pton() support both IPv4 and IPv6 
-		//server.sin_addr.s_addr = inet_addr(szServerName);
-		server.sin_family = AF_INET;
-		server.sin_port = htons(commandPort);
+	struct sockaddr_in commandserver;
+	inet_pton(AF_INET, szServerName, &commandserver.sin_addr.s_addr); //inet_addr() is only supporting IPv4 but inet_pton() support both IPv4 and IPv6 
+	//server.sin_addr.s_addr = inet_addr(szServerName);
+	commandserver.sin_family = AF_INET;
+	commandserver.sin_port = htons(1335);
 
-		if (connect(commandSocket, (SOCKADDR*)&server, sizeof(server))) {
-			closesocket(commandSocket);
-			success = false;
-		}
+	if (connect(commandSocket, (SOCKADDR*)&commandserver, sizeof(commandserver))) {
+		closesocket(commandSocket);
+		success = false;
 	}
-
+	
 	return success;
 }
 
@@ -143,26 +140,6 @@ std::vector<std::string> iNova::SendCommand(std::string message) {
 	return result;
 }
 
-bool iNova::GetAutoExposureMode(std::string& exposureMode) {
-	std::vector<std::string> res = SendCommand("GetALC");
-	if (res[0] != "OK") {
-		return false;
-	}
-	exposureMode = res[1];
-
-	return true;
-}
-
-bool iNova::GetAutoGainMode(std::string& gainMode) {
-	std::vector<std::string> res = SendCommand("GetALC");
-	if (res[0] != "OK") {
-		return false;
-	}
-	gainMode = res[2];
-
-	return true;
-}
-
 bool iNova::GetFirmwareVersion(std::string& firmwareVersion) {
 	std::vector<std::string> res = SendCommand("GetFirmwareVersion");
 	if (res[0] != "OK") {
@@ -194,27 +171,37 @@ bool iNova::SetALC(bool AEC, bool AGC) {
 	return true;
 }
 
-bool iNova::GetALC(std::string& AEC, std::string& AGC) {
+bool iNova::GetALC(bool AEC, bool AGC) {
 	std::vector<std::string> res = SendCommand("GetALC");
 	if (res[0] != "OK") {
 		return false;
 	}
-	AEC = res[1];
-	AGC = res[2];
+	res[1] == "ON" ? AEC = true : AEC = false;
+	res[2] == "ON" ? AGC = true : AGC = false;
 
 	return true;
 }
 
-bool iNova::SetExposure(std::string value) {
+bool iNova::SetExposure(int val) {
+	std::string value = std::to_string(val);
 	std::vector<std::string> res = SendCommand("SetExposure " + value);
 	if (res[0] != "OK") { return false; }
 
 	return true;
 }
 
-bool iNova::SetTotalGain(std::string value) {
+bool iNova::SetTotalGain(int val) {
+	std::string value = std::to_string(val);
 	std::vector<std::string> res = SendCommand("SetTotalGain " + value);
 	if (res[0] != "OK") { return false; }
+
+	return true;
+}
+
+bool iNova::GetExposure(std::string& exposureVal) {
+	std::vector<std::string> res = SendCommand("GetExposure");
+	if (res[0] != "OK") { return false; }
+	exposureVal = res[1];
 
 	return true;
 }

@@ -24,16 +24,15 @@ public:
 	iNova();
 	~iNova();
 
-	bool connectCamera(char* szServerName, WORD streamingPort=0, WORD commandPort=0);
+	bool connectCamera(char* szServerName);
 	bool disconnectCamera();
 	bool Get_Image(uchar* rgbBuffer);
-	bool GetAutoExposureMode(std::string& exposureMode);
-	bool GetAutoGainMode(std::string& gainMode);
 	bool GetFirmwareVersion(std::string& firmwareVersion);
 	bool GetSerialNumber(std::string& serialNumber);
 	bool SetALC(bool AEC, bool AGC);
-	bool GetALC(std::string& AEC, std::string& AGC);
-	bool SetExposure(std::string value);
-	bool SetTotalGain(std::string value);
+	bool GetALC(bool AEC, bool AGC);
+	bool GetExposure(std::string& exposureVal);
+	bool SetExposure(int val);
+	bool SetTotalGain(int val);
 };
 

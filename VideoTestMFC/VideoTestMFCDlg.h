@@ -51,9 +51,9 @@ protected:
 
 	CSliderCtrl m_gainSlider, m_ExposureSlider;
 	CEdit m_gainVal, m_expVal;
-	CButton m_autoEXP, m_autoGain, m_checkGray, m_checkSharpen, m_mosaic;
+	CButton m_autoEXP, m_autoGain, m_checkGray, m_checkSharpen, m_mosaic, m_play, m_stop;
 	iNova inova;
-
+	CStatic m_cameraView;
 	static unsigned int GrabThreadProc(void *param);
 	int GrabLoop(void);
 	void DrawImage(CWnd *wnd, int width, int height, int bpp, const unsigned char *buffer);
@@ -83,6 +83,6 @@ public:
 	afx_msg void OnEnChangeEditGainVal();
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
-	CButton m_play;
-	CButton m_stop;
+	
+	
 };
