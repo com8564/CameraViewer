@@ -2,12 +2,8 @@
 // VideoTestMFCDlg.h : header file
 //
 #pragma once
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/videoio.hpp>
-#include <opencv2/highgui.hpp>
-#include <WS2tcpip.h>
-#include <winsock2.h>
-#include <vector>
+#include "iNova.h"
+
 #pragma comment(lib,"ws2_32.lib")
 using namespace cv;
 
@@ -56,14 +52,11 @@ protected:
 	CSliderCtrl m_gainSlider, m_ExposureSlider;
 	CEdit m_gainVal, m_expVal;
 	CButton m_autoEXP, m_autoGain, m_checkGray, m_checkSharpen, m_mosaic;
+	iNova inova;
 
 	static unsigned int GrabThreadProc(void *param);
 	int GrabLoop(void);
 	void DrawImage(CWnd *wnd, int width, int height, int bpp, const unsigned char *buffer);
-	SOCKET connectToServer(char* szServerName, WORD portNum);
-	int get_ImgSize(SOCKET& Socket);
-	bool get_Image(SOCKET Socket, int imgSize, unsigned char* decodedImageData);
-	std::vector<CString> SendCommand(char* server,CString message);
 	BOOL PreTranslateMessage(MSG* pMsg);
 	bool Sharpen(uchar* rgbImage);
 	bool SaveBMP24(const char* filename, int height, int width, int bpp, unsigned char* pBmpImage);

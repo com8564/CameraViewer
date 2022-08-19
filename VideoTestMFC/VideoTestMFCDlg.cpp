@@ -1,4 +1,4 @@
-
+Ôªø
 // VideoTestMFCDlg.cpp : implementation file
 //
 #include "pch.h"
@@ -198,12 +198,11 @@ int CVideoTestMFCDlg::GrabLoop(void)
 	uchar* grayBuffer = new unsigned char[width * height];
 	int y = 0;
 	clock_t startTime = clock();
-	
+
 	while (m_keepGrab)
 	{
 		//Draw camera image
-		int imgSize = get_ImgSize(videoSocket);
-		get_Image(videoSocket, imgSize, rgbBuffer);
+		inova.Get_Image(rgbBuffer);
 
 		if (m_checkSharpen.GetCheck() == 1) {
 			Sharpen(rgbBuffer);
@@ -343,62 +342,72 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 	win->GetWindowTextW(item);
 	USES_CONVERSION;
 	strcpy_s(server, sizeof(server), CT2CA(item));
-	videoSocket = connectToServer(server, 1334);
-	if (videoSocket == NULL) { return; }
-
-	std::vector<CString> recv = SendCommand(server, L"GetALC"); //Get camera setting
-	if (recv[0] != "OK") { return; }
+	inova.connectCamera(server, 1334, 1335);
 	
-	//Exposure state
-	if (recv[1] == "ON") {
-		m_ExposureSlider.EnableWindow(0);
-		m_autoEXP.SetCheck(1);
-		m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
-	}
-	else {
-		m_ExposureSlider.EnableWindow(1);
-		m_autoEXP.SetCheck(0);
-		m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+	std::string AEC, ALC;
+	if (inova.GetALC(AEC, ALC)) {
+		//Exposure state
+		if (AEC == "ON") {
+			m_ExposureSlider.EnableWindow(0);
+			m_autoEXP.SetCheck(1);
+			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+		}
+		else {
+			m_ExposureSlider.EnableWindow(1);
+			m_autoEXP.SetCheck(0);
+			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+		}
+
+		//Gain state
+		if (ALC == "ON") {
+			m_gainSlider.EnableWindow(0);
+			m_autoGain.SetCheck(1);
+			m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+		}
+		else {
+			m_gainSlider.EnableWindow(1);
+			m_autoGain.SetCheck(0);
+			m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+		}
 	}
 
-	//Gain state
-	if (recv[2] == "ON") {
-		m_gainSlider.EnableWindow(0);
-		m_autoGain.SetCheck(1);
-		m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
-	}
-	else {
-		m_gainSlider.EnableWindow(1);
-		m_autoGain.SetCheck(0);
-		m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
-	}
-
-	CString command;
 	if (m_autoEXP.GetCheck() == 1) { //exposure is not automatic
 		CWnd* win = GetDlgItem(IDC_EDIT_EXP_VAL);
 		CString item;
 		win->GetWindowTextW(item);
-		command = L"SetExposure ";
-		command += item;
-		
+
+		//Convert CString to std::string
+		CT2CA convertedString(item);
+		std::string val = std::string(convertedString);
+
+		inova.SetExposure(val);
 	}
+
 	if (m_autoGain.GetCheck() == 1) { //gain is not automatic
 		CWnd* win = GetDlgItem(IDC_EDIT_GAIN_VAL);
 		CString item;
 		win->GetWindowTextW(item);
 
-		command = L"SetTotalGain ";
-		command += item;
+		//Convert CString to std::string
+		CT2CA convertedString(item);
+		std::string val = std::string(convertedString);
+
+		inova.SetTotalGain(val);
 	}
 
-	SendCommand(server, command);
-	recv = SendCommand(server, L"GetSerialNumber");
+	std::string serialNumber;
+	if (inova.GetSerialNumber(serialNumber)) {
+		//Convert std::string to LPCTSRT
+		std::wstring temp = std::wstring(serialNumber.begin(), serialNumber.end());
+		LPCTSTR wideString = temp.c_str();
 
-	if (recv[0] == "OK") {
-		SetDlgItemText(IDC_STATIC_SERIAL, recv[1]);
+		SetDlgItemText(IDC_STATIC_SERIAL, wideString);
 	}
+
+	//unenable play button , enable stop button
 	GetDlgItem(IDC_BUTTON_PLAY)->EnableWindow(FALSE);
 	GetDlgItem(IDC_BUTTON_STOP)->EnableWindow(TRUE);
+
 	m_keepGrab = true;
 	pThread = AfxBeginThread(GrabThreadProc, this);
 }
@@ -410,12 +419,11 @@ void CVideoTestMFCDlg::OnBnClickedButton4()
 
 	m_keepGrab = false;
 	m_threadFinished.Wait(1000);
-	// TODO: Insert your clean up code for camera, codec, etc.
+
+	//enable play button, unenable stop button
 	GetDlgItem(IDC_BUTTON_PLAY)->EnableWindow(TRUE);
 	GetDlgItem(IDC_BUTTON_STOP)->EnableWindow(FALSE);
-
-	closesocket(videoSocket);
-	WSACleanup();
+	inova.disconnectCamera();
 }
 
 // Param1 "Set" is pressed
@@ -429,116 +437,14 @@ void CVideoTestMFCDlg::OnBnClickedButton2()
 	win->GetWindowTextW(item);
 
 	//send command message
-	std::vector<CString> success = SendCommand(server, item);
+	/*std::vector<CString> success = SendCommand(server, item);
 	if (success[0]=="OK") { MessageBox(L"success"); }
-	else { MessageBox(L"Fail"); }
-}
-
-SOCKET CVideoTestMFCDlg::connectToServer(char* szServerName, WORD portNum)
-{
-	WSADATA wsaData;
-	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-		printf("WSAStartup failed.\n");
-		system("pause");
-	}
-
-	struct hostent* host;
-	unsigned int addr;
-	struct sockaddr_in server;
-	SOCKET conn;
-
-	conn = socket(AF_INET, SOCK_STREAM, 0);
-	if (conn == INVALID_SOCKET) { return NULL; }
-
-	InetPton(AF_INET, CA2CT(szServerName), &server.sin_addr.s_addr); //inet_addr() is only supporting IPv4 but InetPton() support both IPv4 and IPv6 
-	server.sin_family = AF_INET;
-	server.sin_port = htons(portNum);
-
-	if (connect(conn, (SOCKADDR*)&server, sizeof(server))) {
-		closesocket(conn);
-		return NULL;
-	}
-
-	return conn;
-}
-
-int CVideoTestMFCDlg::get_ImgSize(SOCKET& Socket) {
-	unsigned char recvbuf[2000];
-	int imgSize = -1;
-	long rc;
-
-	while (1) {
-		rc = recv(Socket, (char*)&recvbuf, sizeof(recvbuf), 0);
-		if (rc == 4) {
-			imgSize = ntohl(*(int*)recvbuf);
-			break;
-		}
-		else {
-			memset(recvbuf, 0, 2000);
-			continue;
-		}
-	}
-
-	return imgSize;
-}
-
-bool CVideoTestMFCDlg::get_Image(SOCKET Socket, int imgSize, unsigned char* buffer) {
-	int count = 0;
-	long rc;
-	if (imgSize < 0 || imgSize > MAX_JPEG_SIZE) { return false; }
-
-	unsigned char* jpegImgbuf = new unsigned char[imgSize];
-
-	while (count < imgSize) {
-		rc = recv(Socket, (char*)jpegImgbuf + count, imgSize - count, 0);
-		if (rc > 0) { count += rc; }
-		else { continue; }
-	}
-	bool result = false;
-
-	if (jpegImgbuf[imgSize - 2] == 0xff && jpegImgbuf[imgSize - 1] == 0xd9) {
-		Mat rawData(1, imgSize, CV_8UC1, (void*)jpegImgbuf);
-		Mat decodedImage = imdecode(rawData, 1);
-		memcpy(buffer, decodedImage.data, width * height * bpp);
-		result = true;
-	}
-
-	delete[] jpegImgbuf;
-	return result;
-}
-
-std::vector<CString> CVideoTestMFCDlg::SendCommand(char* server, CString message) {
-	commandSocket = connectToServer(server, 1335);
-	message += "\r\n";
-	char commandMSG[100];
-	strcpy_s(commandMSG, sizeof(commandMSG), CT2CA(message));
-
-	char recvbuf[100];
-	memset(recvbuf, 0, 100);
-	send(commandSocket, commandMSG, message.GetLength(), 0);
-	recv(commandSocket, recvbuf, sizeof(recvbuf), 0);
-	std::vector<CString> result;
-
-	CString temp;
-	int i = 0;
-	while (recvbuf[i]!=0) {
-		AfxExtractSubString(temp, (CString)recvbuf, i, ' ');
-		if (temp == "") { break; }
-		result.push_back(temp);
-		i++;
-	}
-
-	if (result.size() > 0) {//Erase CRLF
-		result[result.size() - 1].Replace(L"\r\n", L""); 
-	}
-	
-	closesocket(commandSocket);
-	return result;
+	else { MessageBox(L"Fail"); }*/
 }
 
 void CVideoTestMFCDlg::OnBnClickedButton5()
 {
-	// TODO: ø©±‚ø° ƒ¡∆Æ∑— æÀ∏≤ √≥∏Æ±‚ ƒ⁄µÂ∏¶ √ﬂ∞°«’¥œ¥Ÿ.
+	// TODO: Ïó¨Í∏∞Ïóê Ïª®Ìä∏Î°§ ÏïåÎ¶º Ï≤òÎ¶¨Í∏∞ ÏΩîÎìúÎ•º Ï∂îÍ∞ÄÌï©ÎãàÎã§.
 	m_clickedSaveImage = true;
 }
 
@@ -546,7 +452,7 @@ void CVideoTestMFCDlg::OnBnClickedButton5()
 void CVideoTestMFCDlg::OnNMCustomdrawSlider1(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
-	// TODO: ø©±‚ø° ƒ¡∆Æ∑— æÀ∏≤ √≥∏Æ±‚ ƒ⁄µÂ∏¶ √ﬂ∞°«’¥œ¥Ÿ.
+	// TODO: Ïó¨Í∏∞Ïóê Ïª®Ìä∏Î°§ ÏïåÎ¶º Ï≤òÎ¶¨Í∏∞ ÏΩîÎìúÎ•º Ï∂îÍ∞ÄÌï©ÎãàÎã§.
 	m_ExposureSlider.SetRange(43, 33021);
 	int iPos;
 	iPos = m_ExposureSlider.GetPos();
@@ -563,26 +469,28 @@ void CVideoTestMFCDlg::OnEnChangeEdit3()
 		CString item;
 		win->GetWindowTextW(item);
 
-		CString command = L"SetExposure ";
-		command += item;
-		SendCommand(server, command);
+		//Convert CString to std::string
+		CT2CA convertedString(item);
+		std::string val = std::string(convertedString);
+
+		inova.SetExposure(val);
 	}
 }
 
 void CVideoTestMFCDlg::OnBnClickedCheckAutoExp()
 {
 	if (m_keepGrab) {//camera is running
-		CString command = NULL;
-		
+		bool aec, agc;
+
 		if (m_autoEXP.GetCheck() == 1) {//exposure is auto
 			m_ExposureSlider.EnableWindow(0);
 			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
 
 			if (m_autoGain.GetCheck() == 1) {//gain is auto
-				command = L"SetALC ON ON 90 43 33021 0.00000 13.9000 15.0 OFF";
+				aec = true; agc = true;
 			}
 			else {
-				command = L"SetALC ON OFF 90 43 33021 0.00000 13.9000 15.0 OFF";
+				aec = true;	agc = false;
 			}
 		}
 
@@ -591,14 +499,14 @@ void CVideoTestMFCDlg::OnBnClickedCheckAutoExp()
 			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
 
 			if (m_autoGain.GetCheck() == 1) {
-				command = L"SetALC OFF ON 90 43 33021 0.00000 13.9000 15.0 OFF";
+				aec = false; agc = true;
 			}
 			else {
-				command = L"SetALC OFF OFF 90 43 33021 0.00000 13.9000 15.0 OFF";
+				aec = false; agc = false;
 			}
 		}
 
-		SendCommand(server, command);
+		inova.SetALC(aec, agc);
 	}
 }
 
@@ -628,7 +536,7 @@ BOOL CVideoTestMFCDlg::PreTranslateMessage(MSG* pMsg)
 void CVideoTestMFCDlg::OnNMCustomdrawSliderGainSlider(NMHDR* pNMHDR, LRESULT* pResult)
 {
 	LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
-	// TODO: ø©±‚ø° ƒ¡∆Æ∑— æÀ∏≤ √≥∏Æ±‚ ƒ⁄µÂ∏¶ √ﬂ∞°«’¥œ¥Ÿ.
+	// TODO: Ïó¨Í∏∞Ïóê Ïª®Ìä∏Î°§ ÏïåÎ¶º Ï≤òÎ¶¨Í∏∞ ÏΩîÎìúÎ•º Ï∂îÍ∞ÄÌï©ÎãàÎã§.
 
 	m_gainSlider.SetRange(0.00000, 13.90000);
 	int iPos;
@@ -640,44 +548,40 @@ void CVideoTestMFCDlg::OnNMCustomdrawSliderGainSlider(NMHDR* pNMHDR, LRESULT* pR
 
 void CVideoTestMFCDlg::OnBnClickedCheckAutoGain()
 {
-	// TODO: ø©±‚ø° ƒ¡∆Æ∑— æÀ∏≤ √≥∏Æ±‚ ƒ⁄µÂ∏¶ √ﬂ∞°«’¥œ¥Ÿ.
+	//// TODO: Ïó¨Í∏∞Ïóê Ïª®Ìä∏Î°§ ÏïåÎ¶º Ï≤òÎ¶¨Í∏∞ ÏΩîÎìúÎ•º Ï∂îÍ∞ÄÌï©ÎãàÎã§.
 	if (m_keepGrab) {
-		CString command = NULL;
-		if (m_autoGain.GetCheck() == 1) {
+		bool aec, agc;
+
+		if (m_autoGain.GetCheck() == 1) {//gain is auto
 			m_gainSlider.EnableWindow(0);
 			m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
-			if (m_autoEXP.GetCheck() == 1) {
-				command = L"SetALC ON ON 90 43 33021 0.00000 13.9000 15.0 OFF";
+
+			if (m_autoEXP.GetCheck() == 1) {//exp is auto
+				aec = true; agc = true;
 			}
 			else {
-				command = L"SetALC OFF ON 90 43 33021 0.00000 13.9000 15.0 OFF";
+				aec = false; agc = true;
 			}
 		}
 
 		else {
 			m_gainSlider.EnableWindow(1);
 			m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+
 			if (m_autoEXP.GetCheck() == 1) {
-				command = L"SetALC ON OFF 90 43 33021 0.00000 13.9000 15.0 OFF";
+				aec = true;	agc = false;
 			}
 			else {
-				command = L"SetALC OFF OFF 90 43 33021 0.00000 13.9000 15.0 OFF";
+				aec = false; agc = false;
 			}
 		}
 
-		SendCommand(server, command);
+		inova.SetALC(aec, agc);
 	}
 }
 
 void CVideoTestMFCDlg::OnEnChangeEditGainVal()
 {
-	// TODO:  RICHEDIT ƒ¡∆Æ∑—¿Œ ∞ÊøÏ, ¿Ã ƒ¡∆Æ∑—¿∫
-	// CDialogEx::OnInitDialog() «‘ºˆ∏¶ ¿Á¡ˆ¡§ 
-	//«œ∞Ì ∏∂Ω∫≈©ø° OR ø¨ªÍ«œø© º≥¡§µ» ENM_CHANGE «√∑°±◊∏¶ ¡ˆ¡§«œø© CRichEditCtrl().SetEventMask()∏¶ »£√‚«œ¡ˆ æ ¿∏∏È
-	// ¿Ã æÀ∏≤ ∏ﬁΩ√¡ˆ∏¶ ∫∏≥ª¡ˆ æ Ω¿¥œ¥Ÿ.
-
-	// TODO:  ø©±‚ø° ƒ¡∆Æ∑— æÀ∏≤ √≥∏Æ±‚ ƒ⁄µÂ∏¶ √ﬂ∞°«’¥œ¥Ÿ.
-
 	if (m_keepGrab && m_autoGain.GetCheck() == 0) {
 		CWnd* win;
 		CString item;
@@ -685,9 +589,11 @@ void CVideoTestMFCDlg::OnEnChangeEditGainVal()
 		win = GetDlgItem(IDC_EDIT_GAIN_VAL);
 		win->GetWindowTextW(item);
 
-		CString command = L"SetTotalGain ";
-		command += item;
-		SendCommand(server, command);
+		//Convert CString to std::string
+		CT2CA convertedString(item);
+		std::string val = std::string(convertedString);
+
+		inova.SetTotalGain(val);
 	}
 }
 
@@ -776,7 +682,7 @@ bool CVideoTestMFCDlg::SaveBMP24(const char* filename, int height, int width, in
 
 void CVideoTestMFCDlg::OnLButtonDown(UINT nFlags, CPoint point)
 {
-	// TODO: ø©±‚ø° ∏ﬁΩ√¡ˆ √≥∏Æ±‚ ƒ⁄µÂ∏¶ √ﬂ∞° π◊/∂«¥¬ ±‚∫ª∞™¿ª »£√‚«’¥œ¥Ÿ.
+	// TODO: Ïó¨Í∏∞Ïóê Î©îÏãúÏßÄ Ï≤òÎ¶¨Í∏∞ ÏΩîÎìúÎ•º Ï∂îÍ∞Ä Î∞è/ÎòêÎäî Í∏∞Î≥∏Í∞íÏùÑ Ìò∏Ï∂úÌï©ÎãàÎã§.
 	CRect m_Pic;
 	GetDlgItem(IDC_CAMERA_VIEW)->GetWindowRect(m_Pic);
 	ScreenToClient(m_Pic);
@@ -797,7 +703,7 @@ void CVideoTestMFCDlg::OnLButtonDown(UINT nFlags, CPoint point)
 
 void CVideoTestMFCDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
-	// TODO: ø©±‚ø° ∏ﬁΩ√¡ˆ √≥∏Æ±‚ ƒ⁄µÂ∏¶ √ﬂ∞° π◊/∂«¥¬ ±‚∫ª∞™¿ª »£√‚«’¥œ¥Ÿ.
+	// TODO: Ïó¨Í∏∞Ïóê Î©îÏãúÏßÄ Ï≤òÎ¶¨Í∏∞ ÏΩîÎìúÎ•º Ï∂îÍ∞Ä Î∞è/ÎòêÎäî Í∏∞Î≥∏Í∞íÏùÑ Ìò∏Ï∂úÌï©ÎãàÎã§.
 	CRect m_Pic;
 	GetDlgItem(IDC_CAMERA_VIEW)->GetWindowRect(m_Pic);
 	ScreenToClient(m_Pic);
