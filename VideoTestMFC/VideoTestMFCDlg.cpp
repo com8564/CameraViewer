@@ -860,19 +860,15 @@ bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage) {
 
 	memcpy(mosaicImage, rgbImage, width * height * bpp);
 	for (int y = (m_top - m_Pic.top) * y_ratio; y < (m_bottom - m_Pic.top - 1) * y_ratio; y++) {
-		const uchar* previous = rgbImage + width * (y - 1) * bpp;
-		const uchar* current = rgbImage + width * (y)*bpp;
-		const uchar* next = rgbImage + width * (y + 1) * bpp;
-
 		int x_col = (m_left - m_Pic.left) * 3 * x_ratio;
 		x_col -= x_col % 3;
-		uchar* output = mosaicImage + width * y * bpp + x_col;
 
 		for (int x = x_col; x <= bpp * (m_right - m_Pic.left - 1) * x_ratio; x++) {
-			*output = saturate_cast<uchar>(
-				(4 * current[x] - current[x - bpp] - current[x + bpp])
-				);
-			output++;
+
+			for (int i = 0; i < 21; i++) {
+				mosaicImage[y * width * bpp + x] = mosaicImage[y * width * bpp + x - i * bpp];
+			}
+
 		}
 	}
 	memcpy(rgbImage, mosaicImage, width * height * bpp);
@@ -893,6 +889,7 @@ bool CVideoTestMFCDlg::GrayScale(uchar* rgbImage) {
 			unsigned char val = (0.299 * r) + (0.587 * g) + (0.114 * b);
 			grayImage[(y * width * 3) + x + 0] = val;
 			grayImage[(y * width * 3) + x + 1] = val;
+
 			grayImage[(y * width * 3) + x + 2] = val;
 		}
 	}
