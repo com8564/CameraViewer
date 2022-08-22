@@ -377,12 +377,8 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 		CWnd* win = GetDlgItem(IDC_EDIT_EXP_VAL);
 		CString item;
 		win->GetWindowTextW(item);
-
-		//Convert CString to std::string
-		CT2CA convertedString(item);
-		std::string val = std::string(convertedString);
-
-		inova.SetExposure(stoi(val));
+		int val = _ttoi(item);
+		inova.SetExposure(val);
 	}
 
 	if (m_autoGain.GetCheck() == 1) { //gain is not automatic
@@ -405,16 +401,15 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 
 		SetDlgItemText(IDC_STATIC_SERIAL, wideString);
 	}
-	std::string exposureVal;
+	int exposureVal;
 	if (inova.GetExposure(exposureVal)) {
 		//Convert std::string to LPCTSRT
-		std::wstring temp = std::wstring(exposureVal.begin(), exposureVal.end());
-		LPCTSTR wideString = temp.c_str();
-		SetDlgItemText(IDC_EDIT_EXP_VAL, wideString);
+		CString strNum; 
+		strNum.Format(_T("%d"), exposureVal);
+		SetDlgItemText(IDC_EDIT_EXP_VAL, strNum);
 
-		inova.SetExposure(stoi(exposureVal));
-		int iPos = _ttoi(wideString);
-		m_ExposureSlider.SetPos(iPos);
+		inova.SetExposure(exposureVal);
+		m_ExposureSlider.SetPos(exposureVal);
 	}
 
 	//unenable play button , enable stop button
@@ -481,12 +476,8 @@ void CVideoTestMFCDlg::OnEnChangeEdit3()
 		CWnd* win = GetDlgItem(IDC_EDIT_EXP_VAL);
 		CString item;
 		win->GetWindowTextW(item);
-
-		//Convert CString to std::string
-		CT2CA convertedString(item);
-		std::string val = std::string(convertedString);
-
-		inova.SetExposure(stoi(val));
+		int val = _ttoi(item);
+		inova.SetExposure(val);
 	}
 }
 

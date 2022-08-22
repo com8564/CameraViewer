@@ -30,8 +30,8 @@ public:
 	bool GetFirmwareVersion(std::string& firmwareVersion);
 	bool GetSerialNumber(std::string& serialNumber);
 	bool SetALC(bool AEC, bool AGC);
-	bool GetALC(bool AEC, bool AGC);
-	bool GetExposure(std::string& exposureVal);
+	bool GetALC(bool& AEC, bool& AGC);
+	bool GetExposure(int& exposureVal);
 	bool SetExposure(int val);
 	bool SetTotalGain(int val);
 };

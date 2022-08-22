@@ -171,7 +171,7 @@ bool iNova::SetALC(bool AEC, bool AGC) {
 	return true;
 }
 
-bool iNova::GetALC(bool AEC, bool AGC) {
+bool iNova::GetALC(bool& AEC, bool& AGC) {
 	std::vector<std::string> res = SendCommand("GetALC");
 	if (res[0] != "OK") {
 		return false;
@@ -198,10 +198,10 @@ bool iNova::SetTotalGain(int val) {
 	return true;
 }
 
-bool iNova::GetExposure(std::string& exposureVal) {
+bool iNova::GetExposure(int& exposureVal) {
 	std::vector<std::string> res = SendCommand("GetExposure");
 	if (res[0] != "OK") { return false; }
-	exposureVal = res[1];
+	exposureVal = stoi(res[1]);
 
 	return true;
 }
