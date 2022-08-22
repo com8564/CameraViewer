@@ -29,8 +29,8 @@ public:
 	bool Get_Image(uchar* rgbBuffer);
 	bool GetFirmwareVersion(std::string& firmwareVersion);
 	bool GetSerialNumber(std::string& serialNumber);
-	bool SetALC(bool AEC, bool AGC);
-	bool GetALC(bool& AEC, bool& AGC);
+	bool SetALC(bool AEC, bool AGC, int min_exp, int max_exp, float min_gain, float max_gain);
+	bool GetALC(bool& AEC, bool& AGC, int& min_exp, int& max_exp, float& min_gain, float& max_gain);
 	bool GetExposure(int& exposureVal);
 	bool SetExposure(int val);
 	bool SetTotalGain(int val);

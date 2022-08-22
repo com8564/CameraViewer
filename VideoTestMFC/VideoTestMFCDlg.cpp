@@ -74,6 +74,10 @@ void CVideoTestMFCDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_BUTTON_PLAY, m_play);
 	DDX_Control(pDX, IDC_BUTTON_STOP, m_stop);
 	DDX_Control(pDX, IDC_CAMERA_VIEW, m_cameraView);
+	DDX_Control(pDX, IDC_EDIT_MINEXP, m_minexp);
+	DDX_Control(pDX, IDC_EDIT_MAXEXP, m_maxexp);
+	DDX_Control(pDX, IDC_EDIT_MINGAIN, m_mingain);
+	DDX_Control(pDX, IDC_EDIT_MAXGAIN, m_maxgain);
 }
 
 BEGIN_MESSAGE_MAP(CVideoTestMFCDlg, CDialogEx)
@@ -92,6 +96,7 @@ BEGIN_MESSAGE_MAP(CVideoTestMFCDlg, CDialogEx)
 	ON_EN_CHANGE(IDC_EDIT_GAIN_VAL, &CVideoTestMFCDlg::OnEnChangeEditGainVal)
 	ON_WM_LBUTTONDOWN()
 	ON_WM_LBUTTONUP()
+	ON_EN_CHANGE(IDC_EDIT_MINEXP, &CVideoTestMFCDlg::OnEnChangeEditMinexp)
 END_MESSAGE_MAP()
 
 
@@ -213,25 +218,11 @@ int CVideoTestMFCDlg::GrabLoop(void)
 			Mosaic(rgbBuffer);
 		}
 
-		if (m_checkGray.GetCheck() == 0) {			
-			// Draw the buffer on window.
-			DrawImage(pView, width, height, 3, rgbBuffer);
+		if (m_checkGray.GetCheck() == 1) {			
+			GrayScale(rgbBuffer);
 		}
 
-		else {
-			for (int y = 0; y < height - 1; y++) {
-				int i = 0;
-				for (int x = 0; x < (width - 1) * bpp; x += bpp) {
-					unsigned char r, g, b;
-					r = rgbBuffer[(y * width * 3) + x + 2];
-					g = rgbBuffer[(y * width * 3) + x + 1];
-					b = rgbBuffer[(y * width * 3) + x + 0];
-					grayBuffer[(width * y) + i] = (0.299 * r) + (0.587 * g) + (0.114 * b);
-					i++;
-				}
-			}
-			DrawImage(pView, width, height, 1, grayBuffer);
-		}
+		DrawImage(pView, width, height, 3, rgbBuffer);
 
 		if (m_clickedSaveImage) {
 			SaveBMP24("../save.bmp", height, width, 3, rgbBuffer);
@@ -347,17 +338,21 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 	
 	bool AEC = true;
 	bool ALC = true;
-	if (inova.GetALC(AEC, ALC)) {
+	if (inova.GetALC(AEC, ALC, min_exp, max_exp, min_gain, max_gain)) {
 		//Exposure state
 		if (AEC) {
 			m_ExposureSlider.EnableWindow(0);
 			m_autoEXP.SetCheck(1);
 			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			m_minexp.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			m_maxexp.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
 		}
 		else {
 			m_ExposureSlider.EnableWindow(1);
 			m_autoEXP.SetCheck(0);
 			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+			m_minexp.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+			m_maxexp.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
 		}
 
 		//Gain state
@@ -365,15 +360,19 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 			m_gainSlider.EnableWindow(0);
 			m_autoGain.SetCheck(1);
 			m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			m_mingain.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			m_maxgain.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
 		}
 		else {
 			m_gainSlider.EnableWindow(1);
 			m_autoGain.SetCheck(0);
 			m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+			m_mingain.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+			m_maxgain.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
 		}
 	}
 
-	if (m_autoEXP.GetCheck() == 1) { //exposure is not automatic
+	if (m_autoEXP.GetCheck() == 0) { //exposure is not automatic
 		CWnd* win = GetDlgItem(IDC_EDIT_EXP_VAL);
 		CString item;
 		win->GetWindowTextW(item);
@@ -381,17 +380,27 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 		inova.SetExposure(val);
 	}
 
-	if (m_autoGain.GetCheck() == 1) { //gain is not automatic
+	if (m_autoGain.GetCheck() == 0) { //gain is not automatic
 		CWnd* win = GetDlgItem(IDC_EDIT_GAIN_VAL);
 		CString item;
 		win->GetWindowTextW(item);
+		int val = _ttoi(item);
+		inova.SetTotalGain(val);
 
-		//Convert CString to std::string
-		CT2CA convertedString(item);
-		std::string val = std::string(convertedString);
-
-		inova.SetTotalGain(stoi(val));
+		
 	}
+
+	CString str_minexp, str_maxexp;
+	str_minexp.Format(_T("%d"), min_exp); //Convert int to CStirng
+	m_minexp.SetWindowTextW(str_minexp);
+	str_maxexp.Format(_T("%d"), max_exp);
+	m_maxexp.SetWindowTextW(str_maxexp);
+
+	CString str_mingain, str_maxgain;
+	str_mingain.Format(_T("%f"), min_gain); //Convert float to CStirng
+	m_mingain.SetWindowTextW(str_mingain);
+	str_maxgain.Format(_T("%f"), max_gain);
+	m_maxgain.SetWindowTextW(str_maxgain);
 
 	std::string serialNumber;
 	if (inova.GetSerialNumber(serialNumber)) {
@@ -401,6 +410,7 @@ void CVideoTestMFCDlg::OnBnClickedButton1()
 
 		SetDlgItemText(IDC_STATIC_SERIAL, wideString);
 	}
+
 	int exposureVal;
 	if (inova.GetExposure(exposureVal)) {
 		//Convert std::string to LPCTSRT
@@ -484,33 +494,74 @@ void CVideoTestMFCDlg::OnEnChangeEdit3()
 void CVideoTestMFCDlg::OnBnClickedCheckAutoExp()
 {
 	if (m_keepGrab) {//camera is running
-		bool aec, agc;
-
 		if (m_autoEXP.GetCheck() == 1) {//exposure is auto
 			m_ExposureSlider.EnableWindow(0);
 			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			m_minexp.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			m_maxexp.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			aec = true;
 
 			if (m_autoGain.GetCheck() == 1) {//gain is auto
-				aec = true; agc = true;
+				agc = true;
 			}
 			else {
-				aec = true;	agc = false;
+				m_mingain.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+				m_maxgain.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+				agc = false;
+
+				CString str_mingain, str_maxgain;
+				str_mingain.Format(_T("%d"), min_exp); //Convert int to CStirng
+				m_minexp.SetWindowTextW(str_mingain);
+
+				str_maxgain.Format(_T("%d"), max_exp);
+				m_maxexp.SetWindowTextW(str_maxgain);
 			}
 		}
 
 		else {
 			m_ExposureSlider.EnableWindow(1);
 			m_expVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+			m_minexp.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+			m_maxexp.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+
+			CString str_minexp, str_maxexp;
+			str_minexp.Format(_T("%d"), min_exp); //Convert int to CStirng
+			m_minexp.SetWindowTextW(str_minexp);
+
+			str_maxexp.Format(_T("%d"), max_exp);
+			m_maxexp.SetWindowTextW(str_maxexp);
+
+			aec = false;
 
 			if (m_autoGain.GetCheck() == 1) {
-				aec = false; agc = true;
+				agc = true;
 			}
 			else {
-				aec = false; agc = false;
+				m_mingain.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+				m_maxgain.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+				agc = false;
+
+				CString str_mingain, str_maxgain;
+				str_mingain.Format(_T("%d"), min_exp); //Convert int to CStirng
+				m_minexp.SetWindowTextW(str_mingain);
+
+				str_maxgain.Format(_T("%d"), max_exp);
+				m_maxexp.SetWindowTextW(str_maxgain);				
 			}
 		}
 
-		inova.SetALC(aec, agc);
+		CString val;
+		m_minexp.GetWindowTextW(val);
+		min_exp = _ttoi(val);
+		m_maxexp.GetWindowTextW(val);
+		max_exp = _ttoi(val);
+
+		m_mingain.GetWindowTextW(val);
+		min_gain = _ttof(val);
+		m_maxgain.GetWindowTextW(val);
+		max_gain = _ttof(val);
+
+		inova.SetALC(aec, agc, min_exp, max_exp, min_gain, max_gain);
 	}
 }
 
@@ -531,6 +582,37 @@ BOOL CVideoTestMFCDlg::PreTranslateMessage(MSG* pMsg)
 			m_gainSlider.SetPos(iPos);
 		}
 
+		if (GetDlgItem(IDC_EDIT_MINEXP) == GetFocus())
+		{
+			CString val;
+			m_minexp.GetWindowTextW(val);
+			min_exp = _ttoi(val);
+			inova.SetALC(aec, agc, min_exp, max_exp, min_gain, max_gain);
+		}
+
+		if (GetDlgItem(IDC_EDIT_MAXEXP) == GetFocus())
+		{
+			CString val;
+			m_maxexp.GetWindowTextW(val);
+			max_exp = _ttoi(val);
+			inova.SetALC(aec, agc, min_exp, max_exp, min_gain, max_gain);
+		}
+
+		if (GetDlgItem(IDC_EDIT_MINGAIN) == GetFocus())
+		{
+			CString val;
+			m_mingain.GetWindowTextW(val);
+			min_gain = _ttoi(val);
+			inova.SetALC(aec, agc, min_exp, max_exp, min_gain, max_gain);
+		}
+
+		if (GetDlgItem(IDC_EDIT_MAXGAIN) == GetFocus())
+		{
+			CString val;
+			m_maxgain.GetWindowTextW(val);
+			max_gain = _ttoi(val);
+			inova.SetALC(aec, agc, min_exp, max_exp, min_gain, max_gain);
+		}
 		return TRUE;
 	}
 		
@@ -554,33 +636,73 @@ void CVideoTestMFCDlg::OnBnClickedCheckAutoGain()
 {
 	//// TODO: 여기에 컨트롤 알림 처리기 코드를 추가합니다.
 	if (m_keepGrab) {
-		bool aec, agc;
-
 		if (m_autoGain.GetCheck() == 1) {//gain is auto
 			m_gainSlider.EnableWindow(0);
 			m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			m_mingain.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			m_maxgain.SendMessage(EM_SETREADONLY, (WPARAM)TRUE, (LPARAM)0);
+			agc = true;
 
 			if (m_autoEXP.GetCheck() == 1) {//exp is auto
-				aec = true; agc = true;
+				aec = true; 
 			}
 			else {
-				aec = false; agc = true;
+				m_minexp.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+				m_maxexp.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+				aec = false;
+
+				CString str_minexp, str_maxexp;
+				str_minexp.Format(_T("%d"), min_exp); //Convert int to CStirng
+				m_minexp.SetWindowTextW(str_minexp);
+
+				str_maxexp.Format(_T("%d"), max_exp);
+				m_maxexp.SetWindowTextW(str_maxexp);
 			}
 		}
 
 		else {
 			m_gainSlider.EnableWindow(1);
 			m_gainVal.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+			m_mingain.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+			m_maxgain.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+			agc = false;
+
+			CString str_mingain, str_maxgain;
+			str_mingain.Format(_T("%f"), min_gain); //Convert int to CStirng
+			m_mingain.SetWindowTextW(str_mingain);
+
+			str_maxgain.Format(_T("%f"), max_gain);
+			m_maxgain.SetWindowTextW(str_maxgain);
 
 			if (m_autoEXP.GetCheck() == 1) {
-				aec = true;	agc = false;
+				aec = true;
 			}
 			else {
-				aec = false; agc = false;
+				m_minexp.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+				m_maxexp.SendMessage(EM_SETREADONLY, (WPARAM)FALSE, (LPARAM)0);
+				aec = false;
+
+				CString str_minexp, str_maxexp;
+				str_minexp.Format(_T("%d"), min_exp); //Convert int to CStirng
+				m_minexp.SetWindowTextW(str_minexp);
+
+				str_maxexp.Format(_T("%d"), max_exp);
+				m_maxexp.SetWindowTextW(str_maxexp);
 			}
 		}
 
-		inova.SetALC(aec, agc);
+		CString val;
+		m_minexp.GetWindowTextW(val);
+		min_exp = _ttoi(val);
+		m_maxexp.GetWindowTextW(val);
+		max_exp = _ttoi(val);
+
+		m_mingain.GetWindowTextW(val);
+		min_gain = _ttof(val);
+		m_maxgain.GetWindowTextW(val);
+		max_gain = _ttof(val);
+
+		inova.SetALC(aec, agc, min_exp, max_exp, min_gain, max_gain);
 	}
 }
 
@@ -683,7 +805,6 @@ bool CVideoTestMFCDlg::SaveBMP24(const char* filename, int height, int width, in
 	return true;
 }
 
-
 void CVideoTestMFCDlg::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	// TODO: 여기에 메시지 처리기 코드를 추가 및/또는 기본값을 호출합니다.
@@ -703,7 +824,6 @@ void CVideoTestMFCDlg::OnLButtonDown(UINT nFlags, CPoint point)
 
 	CDialogEx::OnLButtonDown(nFlags, point);
 }
-
 
 void CVideoTestMFCDlg::OnLButtonUp(UINT nFlags, CPoint point)
 {
@@ -728,7 +848,6 @@ void CVideoTestMFCDlg::OnLButtonUp(UINT nFlags, CPoint point)
 
 	CDialogEx::OnLButtonUp(nFlags, point);
 }
-
 
 bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage) {
 	unsigned char* mosaicImage = new unsigned char[width * height * bpp];
@@ -760,4 +879,35 @@ bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage) {
 
 	delete[] mosaicImage;
 	return true;
+}
+
+bool CVideoTestMFCDlg::GrayScale(uchar* rgbImage) {
+	unsigned char* grayImage = new unsigned char[width * height * bpp];
+	for (int y = 0; y < height - 1; y++) {
+		for (int x = 0; x < (width - 1) * bpp; x += bpp) {
+			unsigned char r, g, b;
+			r = rgbImage[(y * width * 3) + x + 2];
+			g = rgbImage[(y * width * 3) + x + 1];
+			b = rgbImage[(y * width * 3) + x + 0];
+
+			unsigned char val = (0.299 * r) + (0.587 * g) + (0.114 * b);
+			grayImage[(y * width * 3) + x + 0] = val;
+			grayImage[(y * width * 3) + x + 1] = val;
+			grayImage[(y * width * 3) + x + 2] = val;
+		}
+	}
+	memcpy(rgbImage, grayImage, width * height * bpp);
+
+	delete[] grayImage;
+	return true;
+}
+
+void CVideoTestMFCDlg::OnEnChangeEditMinexp()
+{
+	// TODO:  RICHEDIT 컨트롤인 경우, 이 컨트롤은
+	// CDialogEx::OnInitDialog() 함수를 재지정 
+	//하고 마스크에 OR 연산하여 설정된 ENM_CHANGE 플래그를 지정하여 CRichEditCtrl().SetEventMask()를 호출하지 않으면
+	// 이 알림 메시지를 보내지 않습니다.
+
+	// TODO:  여기에 컨트롤 알림 처리기 코드를 추가합니다.
 }

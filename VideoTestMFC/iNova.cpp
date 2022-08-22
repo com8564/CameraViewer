@@ -160,24 +160,35 @@ bool iNova::GetSerialNumber(std::string& serialNumber) {
 	return true;
 }
 
-bool iNova::SetALC(bool AEC, bool AGC) {
-	std::string s_AEC, s_AGC;
+bool iNova::SetALC(bool AEC, bool AGC, int min_exp, int max_exp, float min_gain, float max_gain) {
+	std::string s_AEC, s_AGC, s_minEXP, s_maxEXP, s_minGain, s_maxGain;
 	AEC ? s_AEC = "ON" : s_AEC = "OFF";
 	AGC ? s_AGC = "ON" : s_AGC = "OFF";
+
+	s_minEXP = std::to_string(min_exp);
+	s_maxEXP = std::to_string(max_exp);
+	s_minGain = std::to_string(min_gain);
+	s_maxGain = std::to_string(max_gain);
 	
-	std::string message = "SetALC " + s_AEC + " " + s_AGC + " 90 43 33021 0.00000 13.9000 15.0 OFF";
+	std::string message = "SetALC " + s_AEC + " " + s_AGC + " 90 "
+		+ s_minEXP + " " + s_maxEXP + " " + s_minGain + " " + s_maxGain + " 15.0 OFF";
+
 	SendCommand(message);
 
 	return true;
 }
 
-bool iNova::GetALC(bool& AEC, bool& AGC) {
+bool iNova::GetALC(bool& AEC, bool& AGC, int& min_exp, int& max_exp, float& min_gain, float& max_gain) {
 	std::vector<std::string> res = SendCommand("GetALC");
 	if (res[0] != "OK") {
 		return false;
 	}
 	res[1] == "ON" ? AEC = true : AEC = false;
 	res[2] == "ON" ? AGC = true : AGC = false;
+	min_exp = stoi(res[4]);
+	max_exp = stoi(res[5]);
+	min_gain = stof(res[6]);
+	max_gain = stof(res[7]);
 
 	return true;
 }

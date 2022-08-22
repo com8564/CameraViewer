@@ -30,6 +30,10 @@
 #define IDC_CHECK_GRAY                  1019
 #define IDC_CHECK_SHARPEN               1020
 #define IDC_CHECK_MOSAIC                1021
+#define IDC_EDIT_MINEXP                 1022
+#define IDC_EDIT_MAXEXP                 1023
+#define IDC_EDIT_MINGAIN                1024
+#define IDC_EDIT_MAXGAIN                1025
 
 // Next default values for new objects
 // 
@@ -37,7 +41,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1022
+#define _APS_NEXT_CONTROL_VALUE         1023
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

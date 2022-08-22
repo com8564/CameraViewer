@@ -49,18 +49,26 @@ protected:
 	int height = 1080, width = 1920, bpp = 3;
 	int m_left, m_right, m_top, m_bottom;
 
+	bool aec, agc;
+	int min_exp, max_exp;
+	float min_gain, max_gain;
+
 	CSliderCtrl m_gainSlider, m_ExposureSlider;
 	CEdit m_gainVal, m_expVal;
 	CButton m_autoEXP, m_autoGain, m_checkGray, m_checkSharpen, m_mosaic, m_play, m_stop;
 	iNova inova;
 	CStatic m_cameraView;
+	CEdit m_minexp, m_maxexp, m_mingain, m_maxgain;
+
 	static unsigned int GrabThreadProc(void *param);
 	int GrabLoop(void);
 	void DrawImage(CWnd *wnd, int width, int height, int bpp, const unsigned char *buffer);
-	BOOL PreTranslateMessage(MSG* pMsg);
-	bool Sharpen(uchar* rgbImage);
 	bool SaveBMP24(const char* filename, int height, int width, int bpp, unsigned char* pBmpImage);
+	BOOL PreTranslateMessage(MSG* pMsg);
+	
+	bool Sharpen(uchar* rgbImage);
 	bool Mosaic(uchar* rgbImage);
+	bool GrayScale(uchar* rgbImage);
 
 	// Generated message map functions
 	virtual BOOL OnInitDialog();
@@ -84,5 +92,5 @@ public:
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	
-	
+	afx_msg void OnEnChangeEditMinexp();
 };
