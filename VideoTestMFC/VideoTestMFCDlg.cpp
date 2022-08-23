@@ -201,7 +201,6 @@ int CVideoTestMFCDlg::GrabLoop(void)
 	CDC *pDC = pView->GetDC();
 
 	uchar* rgbBuffer = new unsigned char[width * height * bpp];
-	uchar* grayBuffer = new unsigned char[width * height];
 	int y = 0;
 	clock_t startTime = clock();
 
@@ -240,7 +239,6 @@ int CVideoTestMFCDlg::GrabLoop(void)
 	}
 
 	delete[] rgbBuffer;
-	delete[] grayBuffer;
 	// Tell main thread that this thread is finished.
 	m_threadFinished.Set();
 	return 0;
@@ -862,11 +860,14 @@ bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage) {
 	for (int y = (m_top - m_Pic.top) * y_ratio; y < (m_bottom - m_Pic.top - 1) * y_ratio; y++) {
 		int x_col = (m_left - m_Pic.left) * 3 * x_ratio;
 		x_col -= x_col % 3;
+		for (int x = x_col; x <= bpp * (m_right - m_Pic.left - 1) * x_ratio; x+=3) {
 
-		for (int x = x_col; x <= bpp * (m_right - m_Pic.left - 1) * x_ratio; x++) {
-
-			for (int i = 0; i < 21; i++) {
-				mosaicImage[y * width * bpp + x] = mosaicImage[y * width * bpp + x - i * bpp];
+			for (int j = y; j < y+3; j++) {
+				for (int i = x; i < x+3; i++) {
+					mosaicImage[j * width * bpp + i];
+					mosaicImage[j * width * bpp + i + 1];
+					mosaicImage[j * width * bpp + i + 2];
+				}
 			}
 
 		}
