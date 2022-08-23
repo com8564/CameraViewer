@@ -214,7 +214,7 @@ int CVideoTestMFCDlg::GrabLoop(void)
 		}
 
 		if (m_mosaic.GetCheck() == 1) {
-			Mosaic(rgbBuffer);
+			Mosaic(rgbBuffer, 30);
 		}
 
 		if (m_checkGray.GetCheck() == 1) {			
@@ -847,7 +847,7 @@ void CVideoTestMFCDlg::OnLButtonUp(UINT nFlags, CPoint point)
 	CDialogEx::OnLButtonUp(nFlags, point);
 }
 
-bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage) {
+bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage, int size) {
 	unsigned char* mosaicImage = new unsigned char[width * height * bpp];
 	CRect m_Pic;
 	GetDlgItem(IDC_CAMERA_VIEW)->GetWindowRect(m_Pic);
@@ -857,16 +857,16 @@ bool CVideoTestMFCDlg::Mosaic(uchar* rgbImage) {
 	int x_ratio = width / (m_Pic.right - m_Pic.left);
 
 	memcpy(mosaicImage, rgbImage, width * height * bpp);
-	for (int y = (m_top - m_Pic.top) * y_ratio; y < (m_bottom - m_Pic.top - 1) * y_ratio; y+=20) {
+	for (int y = (m_top - m_Pic.top) * y_ratio; y < (m_bottom - m_Pic.top - 1) * y_ratio; y+= size) {
 		int x_col = (m_left - m_Pic.left) * 3 * x_ratio;
 		x_col -= x_col % 3;
-		for (int x = x_col; x <= bpp * (m_right - m_Pic.left - 1) * x_ratio; x+=20) {
+		for (int x = x_col; x <= bpp * (m_right - m_Pic.left - 1) * x_ratio; x+= size) {
 			const uchar b = rgbImage[y * width * bpp + x];
 			const uchar g = rgbImage[y * width * bpp + x + 1];
 			const uchar r = rgbImage[y * width * bpp + x + 2];
 
-			for (int j = y; j < y+20; j++) {
-				for (int i = x; i < x+20; i+=3) {
+			for (int j = y; j < y+ size; j++) {
+				for (int i = x; i < x+ size; i+=3) {
 					mosaicImage[j * width * bpp + i + 2] = r;
 					mosaicImage[j * width * bpp + i + 1] = g;
 					mosaicImage[j * width * bpp + i] = b;

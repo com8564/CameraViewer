@@ -67,7 +67,7 @@ protected:
 	BOOL PreTranslateMessage(MSG* pMsg);
 	
 	bool Sharpen(uchar* rgbImage);
-	bool Mosaic(uchar* rgbImage);
+	bool Mosaic(uchar* rgbImage, int size);
 	bool GrayScale(uchar* rgbImage);
 
 	// Generated message map functions
